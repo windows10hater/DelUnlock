@@ -136,7 +136,14 @@ Because DelUnlock interacts directly with remote process handles via `NtQuerySys
 
 DelUnlock contains no malware, no telemetry, and requires no external network access. The codebase is completely open source and can be compiled directly from source.
 
-To verify binary integrity, official release checksums are published with every build:
+To verify binary integrity, official release checksums are published in `SHA256SUMS.txt` on the [GitHub Releases](https://github.com/windows10hater/DelUnlock/releases) page and listed below:
+
+| Target Binary | Architecture | SHA-256 Checksum |
+|:---|:---:|:---|
+| `DelUnlock.exe` (or `DelUnlock-x64.exe`) | x64 | `3019CD8095E58BBCAC6F5CCDB1D050A07E9A692708617EF93E33D8EFCA8AF119` |
+| `DelUnlock-x86.exe` | x86 | `CB81D55177A8E15D74258557933F66DB5AEAEC5B3AD67950D7C7EB00E4C775F3` |
+
+To verify your downloaded executable locally in PowerShell:
 
 ```powershell
 Get-FileHash -Algorithm SHA256 DelUnlock.exe
