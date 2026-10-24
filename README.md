@@ -9,6 +9,16 @@ DelUnlock is a native Win32 C++ utility for identifying and removing file locks 
 
 ---
 
+## Screenshots
+
+### Windows 11 Interface (Dark Mode & Modern Window Styling)
+![DelUnlock on Windows 11](docs/screenshots/delunlock_modern.png)
+
+### Windows XP Professional (Classic Luna Styling)
+![DelUnlock on Windows XP](docs/screenshots/delunlock_winxp.png)
+
+---
+
 ## Features
 
 - **Lock Detection:**
@@ -37,13 +47,26 @@ DelUnlock is a native Win32 C++ utility for identifying and removing file locks 
 
 ---
 
+## Comparison with Alternatives
+
+| Feature | DelUnlock | LockHunter / IObit Unlocker | Sysinternals Process Explorer / Handle |
+|:---|:---:|:---:|:---:|
+| **Kernel Driver Required** | No (pure Win32 / NT API) | Yes (requires `.sys` driver) | Process Explorer loads driver on demand |
+| **Windows XP Compatibility** | Yes (XP SP2 / SP3 / x64) | Drops older OS support | Newer builds require Vista or Win 8.1+ |
+| **Explorer Context Menu** | Yes (one-click) | Yes | No (manual PID/handle search) |
+| **Single Standalone Executable** | Yes (~290 KB, static CRT) | No (installer and service) | Yes |
+| **Batch Multi-Select Consolidation** | Yes (IPC rendezvous) | No | No |
+| **Anti-Cheat Friendly** | Yes (no kernel hooks) | Can conflict with anti-cheat | Diagnostic tool |
+
+---
+
 ## Compatibility
 
-DelUnlock is compiled targeting the NT 5.02 subsystem with internal polyfills for post-XP functions:
+DelUnlock is compiled targeting the NT 5.01 (x86) and NT 5.02 (x64) subsystems with internal polyfills for post-XP functions:
 
 | Operating System | Architecture | Supported | Notes |
 |:---|:---:|:---:|:---|
-| Windows 11 | x64 / ARM64 | Yes | Dark mode and rounded corners supported |
+| Windows 11 | x64 / ARM64 | Yes | Native x64; ARM64 supported via Windows 11 emulation layer |
 | Windows 10 | x64 / x86 | Yes | Dark titlebars and high-DPI scaling |
 | Windows 8 / 8.1 | x64 / x86 | Yes | Standard desktop controls |
 | Windows 7 | x64 / x86 | Yes | Aero styling and Restart Manager integration |
@@ -104,13 +127,29 @@ DelUnlock.exe --self-test
 
 ---
 
+## Antivirus False Positives and Verification
+
+Because DelUnlock interacts directly with remote process handles via `NtQuerySystemInformation`, takes administrative ownership privileges (`SeDebugPrivilege`), and severs handles via `DuplicateHandle`, automated heuristic scanners (such as Windows Defender or SmartScreen) may flag unsigned binaries as suspicious (often categorized generically as `Riskware` or `HackTool`).
+
+DelUnlock contains no malware, no telemetry, and requires no external network access. The codebase is completely open source and can be compiled directly from source.
+
+To verify binary integrity, official release checksums are published with every build:
+
+```powershell
+Get-FileHash -Algorithm SHA256 DelUnlock.exe
+```
+
+---
+
 ## Repository Structure
 
 ```
 DelUnlock/
 ├── .github/
 │   └── workflows/
-│       └── build.yml       # GitHub Actions build configuration
+│       └── build.yml       # GitHub Actions build and release pipeline
+├── docs/
+│   └── screenshots/        # Application interface previews
 ├── res/
 │   ├── app.ico             # Application icon
 │   ├── app.manifest        # DPI and common controls manifest
@@ -126,8 +165,8 @@ DelUnlock/
 │   └── xp_compat.cpp       # Compatibility polyfills for Windows XP runtimes
 ├── .gitattributes          # Git line ending configuration
 ├── .gitignore              # Build artifact exclusions
-├── build.bat               # MSVC build script
-├── LICENSE                 # MIT License
+├── build.bat               # MSVC build script (x64 and x86 targets)
+├── LICENSE                 # Apache License 2.0
 └── README.md               # Project documentation
 ```
 
@@ -143,10 +182,14 @@ DelUnlock/
 From a developer command prompt, run:
 
 ```cmd
-build.bat
+:: Build 64-bit binary (default):
+build.bat x64
+
+:: Build 32-bit binary:
+build.bat x86
 ```
 
-The script builds the binary with `/O2 /GL /std:c++17 /MT`, links against `/SUBSYSTEM:WINDOWS,5.02`, and generates `DelUnlock.exe` in the root directory.
+The script builds the binary with `/O2 /GL /std:c++17 /MT`, links against `/SUBSYSTEM:WINDOWS,5.02` (x64) or `5.01` (x86), and outputs the executable in the root directory.
 
 ---
 
