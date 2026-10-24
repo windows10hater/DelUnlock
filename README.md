@@ -1,7 +1,7 @@
 # DelUnlock
 
-[![Platform](https://img.shields.io/badge/Platform-Windows%20XP%20%7C%20Vista%20%7C%207%20%7C%208%20%7C%2010%20%7C%2011-blue.svg)](https://github.com/)
-[![Architecture](https://img.shields.io/badge/Architecture-x64%20%2F%20x86-orange.svg)](https://github.com/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20XP%20%7C%20Vista%20%7C%207%20%7C%208%20%7C%2010%20%7C%2011-blue.svg)](https://github.com/windows10hater/DelUnlock)
+[![Architecture](https://img.shields.io/badge/Architecture-x64%20%2F%20x86-orange.svg)](https://github.com/windows10hater/DelUnlock)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B17-00599C.svg)](https://isocpp.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
