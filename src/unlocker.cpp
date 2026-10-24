@@ -1146,7 +1146,7 @@ static void ScanKernelFileHandles(
     }
 }
 
-// Also check if the target file is itself a running .exe or loaded .dll on XP (where RstrtMgr isn't present)
+// Check if the target file is a running .exe, or (in elevated mode) inspect running processes for loaded modules/DLLs
 static void ScanLoadedModulesForFile(const std::wstring& targetPath, std::map<DWORD, LockingProcess>& ioProcs) {
     HANDLE hSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (hSnap == INVALID_HANDLE_VALUE) return;
@@ -1155,10 +1155,33 @@ static void ScanLoadedModulesForFile(const std::wstring& targetPath, std::map<DW
     pe.dwSize = sizeof(pe);
     DWORD selfPid = GetCurrentProcessId();
 
+    bool elevated = IsRunningAsAdmin();
+
+    // Dynamically resolve EnumProcessModulesEx to support both 32-bit & 64-bit modules across processes
+    // while keeping 100% binary compatibility with Windows XP
+    typedef BOOL (WINAPI *PFN_EnumProcessModulesEx)(HANDLE, HMODULE*, DWORD, LPDWORD, DWORD);
+    typedef BOOL (WINAPI *PFN_EnumProcessModules)(HANDLE, HMODULE*, DWORD, LPDWORD);
+    typedef DWORD (WINAPI *PFN_GetModuleFileNameExW)(HANDLE, HMODULE, LPWSTR, DWORD);
+
+    static HMODULE hPsapi = GetModuleHandleW(L"psapi.dll");
+    if (!hPsapi) hPsapi = LoadLibraryW(L"psapi.dll");
+
+    PFN_EnumProcessModulesEx pEnumModsEx = nullptr;
+    PFN_EnumProcessModules pEnumMods = nullptr;
+    PFN_GetModuleFileNameExW pGetModFileName = nullptr;
+
+    if (hPsapi) {
+        pEnumModsEx = (PFN_EnumProcessModulesEx)GetProcAddress(hPsapi, "EnumProcessModulesEx");
+        pEnumMods = (PFN_EnumProcessModules)GetProcAddress(hPsapi, "EnumProcessModules");
+        pGetModFileName = (PFN_GetModuleFileNameExW)GetProcAddress(hPsapi, "GetModuleFileNameExW");
+    }
+
     if (Process32FirstW(hSnap, &pe)) {
         do {
             if (pe.th32ProcessID <= 4 || pe.th32ProcessID == selfPid) continue;
             std::wstring exePath = GetProcessFullPath(pe.th32ProcessID);
+
+            // 1. Is this process itself running the target .exe?
             if (!exePath.empty() && EqualsIgnoreCase(exePath, targetPath)) {
                 LockingProcess& lp = ioProcs[pe.th32ProcessID];
                 lp.pid           = pe.th32ProcessID;
@@ -1166,6 +1189,42 @@ static void ScanLoadedModulesForFile(const std::wstring& targetPath, std::map<DW
                 lp.fullImagePath = exePath;
                 if (lp.kind == LockKind::Unknown) lp.kind = LockKind::LoadedModule;
                 PopulateProcessDetails(lp);
+                continue;
+            }
+
+            // 2. Stage 3 (Elevated Mode Only): Check loaded modules/DLLs in this process
+            if (elevated && (pEnumModsEx || pEnumMods) && pGetModFileName) {
+                HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pe.th32ProcessID);
+                if (hProc) {
+                    HMODULE hMods[1024] = {};
+                    DWORD cbNeeded = 0;
+                    BOOL ok = FALSE;
+                    if (pEnumModsEx) {
+                        ok = pEnumModsEx(hProc, hMods, sizeof(hMods), &cbNeeded, 0x03 /* LIST_MODULES_ALL */);
+                    } else if (pEnumMods) {
+                        ok = pEnumMods(hProc, hMods, sizeof(hMods), &cbNeeded);
+                    }
+
+                    if (ok && cbNeeded > 0) {
+                        DWORD modCount = cbNeeded / sizeof(HMODULE);
+                        if (modCount > 1024) modCount = 1024;
+                        for (DWORD i = 0; i < modCount; i++) {
+                            wchar_t modPath[MAX_PATH * 2] = {};
+                            if (pGetModFileName(hProc, hMods[i], modPath, MAX_PATH * 2)) {
+                                if (EqualsIgnoreCase(modPath, targetPath)) {
+                                    LockingProcess& lp = ioProcs[pe.th32ProcessID];
+                                    lp.pid           = pe.th32ProcessID;
+                                    lp.processName   = pe.szExeFile;
+                                    lp.fullImagePath = exePath;
+                                    lp.kind          = LockKind::LoadedModule;
+                                    PopulateProcessDetails(lp);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    CloseHandle(hProc);
+                }
             }
         } while (Process32NextW(hSnap, &pe));
     }
@@ -1259,9 +1318,11 @@ ScanResult ScanFileLocks(const std::wstring& filePath, bool resolveExactHandles)
         }
     }
 
-    // Step 3: Check if the file itself is a running .exe (for XP or if missed)
-    if (res.exists && !res.isDirectory && foundProcs.empty()) {
-        ScanLoadedModulesForFile(res.targetPath, foundProcs);
+    // Step 3: Check if the file itself is a running .exe, or (if elevated) scan loaded modules
+    if (res.exists && !res.isDirectory) {
+        if (foundProcs.empty() || IsRunningAsAdmin()) {
+            ScanLoadedModulesForFile(res.targetPath, foundProcs);
+        }
     }
 
     for (auto& kv : foundProcs) {

@@ -522,9 +522,15 @@ static void PopulateLockListAndDefaults(DialogContext* ctx, bool initialLoad) {
         LVITEMW lvi = {};
         lvi.mask    = LVIF_TEXT;
         lvi.iItem   = 0;
-        std::wstring emptyMsg = ctx->scan.isCurrentlyLocked
-            ? L"Locked by elevated process / kernel driver (run Unlocker as Administrator)"
-            : L"No active locking processes found (file is free)";
+        bool isAdmin = IsRunningAsAdmin();
+        std::wstring emptyMsg;
+        if (ctx->scan.isCurrentlyLocked) {
+            emptyMsg = L"Locked by elevated process / kernel driver (run Unlocker as Administrator)";
+        } else if (ctx->isSystemCritical && !isAdmin) {
+            emptyMsg = L"No active file handles found (run in elevated mode to scan memory-mapped modules)";
+        } else {
+            emptyMsg = L"No active locking processes found (file is free)";
+        }
         lvi.pszText = const_cast<LPWSTR>(emptyMsg.c_str());
         ListView_InsertItem(ctx->hListProcs, &lvi);
 
@@ -677,11 +683,18 @@ static void PaintDialogSurface(DialogContext* ctx, HDC hdc, const RECT& rcClient
                   static_cast<int>(ctx->scan.scanTimeMs * 10.0) % 10,
                   adminSuffix);
     } else {
-        wsprintfW(statusLine, L"Unlocked & ready  %s  Scanned in %d.%d ms%s",
-                  bullet,
-                  static_cast<int>(ctx->scan.scanTimeMs),
-                  static_cast<int>(ctx->scan.scanTimeMs * 10.0) % 10,
-                  adminSuffix);
+        if (ctx->isSystemCritical && !isAdmin) {
+            wsprintfW(statusLine, L"Unlocked & ready  %s  Scanned in %d.%d ms  (run in elevated mode to scan memory-mapped modules)",
+                      bullet,
+                      static_cast<int>(ctx->scan.scanTimeMs),
+                      static_cast<int>(ctx->scan.scanTimeMs * 10.0) % 10);
+        } else {
+            wsprintfW(statusLine, L"Unlocked & ready  %s  Scanned in %d.%d ms%s",
+                      bullet,
+                      static_cast<int>(ctx->scan.scanTimeMs),
+                      static_cast<int>(ctx->scan.scanTimeMs * 10.0) % 10,
+                      adminSuffix);
+        }
     }
 
     RECT rcScanInfo = {

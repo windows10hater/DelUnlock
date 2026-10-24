@@ -21,4 +21,4 @@ build/
 *.log
 
 # Loose external manifests
-DelUnlock.exe.manifest
+*.manifest
