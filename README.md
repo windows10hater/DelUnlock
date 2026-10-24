@@ -9,16 +9,6 @@ DelUnlock is a native Win32 C++ utility for identifying and removing file locks 
 
 ---
 
-## Screenshots
-
-### Windows 11 Interface (Dark Mode & Modern Window Styling)
-![DelUnlock on Windows 11](docs/screenshots/delunlock_modern.png)
-
-### Windows XP Professional (Classic Luna Styling)
-![DelUnlock on Windows XP](docs/screenshots/delunlock_winxp.png)
-
----
-
 ## Features
 
 - **Lock Detection:**
@@ -148,8 +138,6 @@ DelUnlock/
 ├── .github/
 │   └── workflows/
 │       └── build.yml       # GitHub Actions build and release pipeline
-├── docs/
-│   └── screenshots/        # Application interface previews
 ├── res/
 │   ├── app.ico             # Application icon
 │   ├── app.manifest        # DPI and common controls manifest
