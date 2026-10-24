@@ -3,7 +3,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20XP%20%7C%20Vista%20%7C%207%20%7C%208%20%7C%2010%20%7C%2011-blue.svg)](https://github.com/)
 [![Architecture](https://img.shields.io/badge/Architecture-x64%20%2F%20x86-orange.svg)](https://github.com/)
 [![Language](https://img.shields.io/badge/Language-C%2B%2B17-00599C.svg)](https://isocpp.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 DelUnlock is a native Win32 C++ utility for identifying and removing file locks on Windows systems, from Windows XP (x86 and x64) through Windows 11. It compiles to a standalone, statically linked executable with no external dependencies or background services.
 
@@ -172,4 +172,4 @@ This tool is provided "as is", without warranty of any kind. You are responsible
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [Apache License, Version 2.0](LICENSE).
