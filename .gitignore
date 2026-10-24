@@ -1,0 +1,24 @@
+# Build and Intermediate Files
+build/
+*.obj
+*.res
+*.map
+*.pdb
+*.idb
+*.ilk
+*.exp
+*.lib
+
+# Executables and runtime data
+*.exe
+*.ini
+
+# IDE & Editor artifacts
+.vs/
+.vscode/
+*.user
+*.suo
+*.log
+
+# Loose external manifests
+DelUnlock.exe.manifest

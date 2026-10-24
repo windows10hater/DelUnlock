@@ -1,0 +1,42 @@
+name: Build DelUnlock
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Native Standalone Executable
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Compile DelUnlock
+        run: |
+          cmd.exe /c "build.bat"
+
+      - name: Verify Binary
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "DelUnlock.exe")) {
+            Write-Error "DelUnlock.exe was not generated!"
+            exit 1
+          }
+          $size = (Get-Item "DelUnlock.exe").Length
+          Write-Host "Build succeeded: DelUnlock.exe ($size bytes)"
+
+      - name: Upload Binary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DelUnlock-x64
+          path: DelUnlock.exe

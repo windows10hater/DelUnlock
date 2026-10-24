@@ -1,0 +1,22 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# C++ Source and Header files
+*.cpp text eol=crlf
+*.hpp text eol=crlf
+*.h text eol=crlf
+*.rc text eol=crlf
+*.manifest text eol=crlf
+*.bat text eol=crlf
+
+# Documentation & Config
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Binaries and assets
+*.ico binary
+*.png binary
+*.jpg binary
