@@ -37,24 +37,11 @@ jobs:
         with:
           arch: ${{ matrix.vcvars }}
 
-      - name: Compile Resource
-        shell: cmd
-        run: |
-          if not exist build mkdir build
-          rc.exe /nologo /fo build\resource.res res\resource.rc
-
       - name: Compile Standalone Executable
         shell: cmd
         run: |
-          cl.exe /nologo /O2 /Ob2 /Oi /Os /GL /GS- /EHsc /std:c++17 /MT ^
-            /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX ^
-            /D_USING_V110_SDK71_ /D_WIN32_WINNT=0x0501 ^
-            src\xp_compat.cpp src\main.cpp src\unlocker.cpp src\ui.cpp src\config.cpp ^
-            build\resource.res ^
-            /Fe:${{ matrix.outname }} /Fo:build\ ^
-            /link /LTCG /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS,${{ matrix.subsystem }} ^
-            user32.lib gdi32.lib shell32.lib shlwapi.lib comctl32.lib comdlg32.lib ^
-            advapi32.lib psapi.lib version.lib uxtheme.lib ole32.lib oleaut32.lib oleacc.lib uuid.lib
+          build.bat ${{ matrix.arch }}
+          if /i "${{ matrix.arch }}"=="x64" if not exist ${{ matrix.outname }} copy /Y DelUnlock.exe ${{ matrix.outname }}
 
       - name: Calculate Checksum
         shell: pwsh

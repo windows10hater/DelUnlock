@@ -562,29 +562,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPWSTR /*l
     }
 
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-
-    wchar_t fileBuf[MAX_PATH * 2] = {};
-    OPENFILENAMEW ofn = {};
-    ofn.lStructSize = sizeof(ofn);
-    ofn.lpstrFilter = L"All Files (*.*)\0*.*\0";
-    ofn.lpstrFile   = fileBuf;
-    ofn.nMaxFile    = MAX_PATH * 2;
-    ofn.lpstrTitle  = L"Select Locked File or Folder to Inspect/Unlock";
-    // OFN_NODEREFERENCELINKS: Don't resolve network shortcuts (prevents network timeouts!)
-    // OFN_DONTADDTORECENT: Don't write to MRU list (prevents disk IO delay)
-    // OFN_NOCHANGEDIR: Don't change process working directory
-    ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_ENABLESIZING |
-                      OFN_NODEREFERENCELINKS | OFN_DONTADDTORECENT | OFN_NOCHANGEDIR;
-
-    // Start in the user's Desktop or personal folder directly so Windows 7 doesn't enumerate network drives
-    wchar_t initialDir[MAX_PATH] = {};
-    if (SHGetSpecialFolderPathW(nullptr, initialDir, CSIDL_DESKTOPDIRECTORY, FALSE)) {
-        ofn.lpstrInitialDir = initialDir;
-    }
-
-    if (GetOpenFileNameW(&ofn) && fileBuf[0]) {
-        return unlocker::ShowUnlockerDialog(hInstance, fileBuf, nullptr);
-    }
-
-    return 0;
+    int res = unlocker::ShowHomeScreen(hInstance);
+    CoUninitialize();
+    return res;
 }

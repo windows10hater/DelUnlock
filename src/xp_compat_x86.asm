@@ -1,0 +1,26 @@
+.386
+.model flat
+
+extern _Proxy_InitializeCriticalSectionEx@12 : proc
+extern _Proxy_AcquireSRWLockExclusive@4 : proc
+extern _Proxy_ReleaseSRWLockExclusive@4 : proc
+extern _Proxy_SleepConditionVariableSRW@16 : proc
+extern _Proxy_WakeAllConditionVariable@4 : proc
+
+.data
+public __imp__InitializeCriticalSectionEx@12
+__imp__InitializeCriticalSectionEx@12 dd _Proxy_InitializeCriticalSectionEx@12
+
+public __imp__AcquireSRWLockExclusive@4
+__imp__AcquireSRWLockExclusive@4 dd _Proxy_AcquireSRWLockExclusive@4
+
+public __imp__ReleaseSRWLockExclusive@4
+__imp__ReleaseSRWLockExclusive@4 dd _Proxy_ReleaseSRWLockExclusive@4
+
+public __imp__SleepConditionVariableSRW@16
+__imp__SleepConditionVariableSRW@16 dd _Proxy_SleepConditionVariableSRW@16
+
+public __imp__WakeAllConditionVariable@4
+__imp__WakeAllConditionVariable@4 dd _Proxy_WakeAllConditionVariable@4
+
+end

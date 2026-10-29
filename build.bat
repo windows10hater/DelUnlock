@@ -37,16 +37,19 @@ rc.exe /nologo /fo build\resource.res res\resource.rc
 
 set "SUBSYS=5.02"
 set "OUTNAME=DelUnlock.exe"
+set "EXTRA_OBJS="
 if /i "%TARGET_ARCH%"=="x86" (
     set "SUBSYS=5.01"
     set "OUTNAME=DelUnlock-x86.exe"
+    ml.exe /nologo /c /Fo build\xp_compat_x86.obj src\xp_compat_x86.asm
+    set "EXTRA_OBJS=build\xp_compat_x86.obj"
 )
 
 cl.exe /nologo /O2 /Ob2 /Oi /Os /GL /GS- /EHsc /std:c++17 /MT ^
     /DUNICODE /D_UNICODE /DWIN32_LEAN_AND_MEAN /DNOMINMAX ^
     /D_USING_V110_SDK71_ /D_WIN32_WINNT=0x0501 ^
     src\xp_compat.cpp src\main.cpp src\unlocker.cpp src\ui.cpp src\config.cpp ^
-    build\resource.res ^
+    build\resource.res !EXTRA_OBJS! ^
     /Fe:%OUTNAME% /Fo:build\ ^
     /link /LTCG /OPT:REF /OPT:ICF /SUBSYSTEM:WINDOWS,%SUBSYS% /MAP:build\delunlock.map ^
     user32.lib gdi32.lib shell32.lib shlwapi.lib comctl32.lib comdlg32.lib ^

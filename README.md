@@ -140,8 +140,8 @@ To verify binary integrity, official release checksums are published in `SHA256S
 
 | Target Binary | Architecture | SHA-256 Checksum |
 |:---|:---:|:---|
-| `DelUnlock.exe` (or `DelUnlock-x64.exe`) | x64 | `3019CD8095E58BBCAC6F5CCDB1D050A07E9A692708617EF93E33D8EFCA8AF119` |
-| `DelUnlock-x86.exe` | x86 | `CB81D55177A8E15D74258557933F66DB5AEAEC5B3AD67950D7C7EB00E4C775F3` |
+| `DelUnlock.exe` (or `DelUnlock-x64.exe`) | x64 | `C8D5671A83187F0C553CF06CCFEB16DBCB757A4E062584FFAA04D84C6C126806` |
+| `DelUnlock-x86.exe` | x86 | `BC39DE3CC2B87A66280706DE862F506FD9EA774652207500F6A6BC5539124D26` |
 
 To verify your downloaded executable locally in PowerShell:
 
@@ -172,10 +172,12 @@ DelUnlock/
 │   ├── ui.hpp
 │   ├── unlocker.cpp        # Kernel handle scanner, service manager, handle operations
 │   ├── unlocker.hpp
-│   └── xp_compat.cpp       # Compatibility polyfills for Windows XP runtimes
+│   ├── xp_compat.cpp       # Compatibility polyfills for Windows XP runtimes (x64 & x86)
+│   └── xp_compat_x86.asm   # MASM symbol forwarders for 32-bit Windows XP CRT imports
 ├── .gitattributes          # Git line ending configuration
 ├── .gitignore              # Build artifact exclusions
 ├── build.bat               # MSVC build script (x64 and x86 targets)
+├── CHANGELOG.md            # Release history and updates
 ├── LICENSE                 # Apache License 2.0
 └── README.md               # Project documentation
 ```
@@ -220,6 +222,21 @@ DelUnlock includes features that forcibly modify system and process state. Pleas
 - **System Stability:** Forcibly terminating processes or modifying files used by background services or system components can destabilize the operating system.
 
 This tool is provided "as is", without warranty of any kind. You are responsible for verifying the target file and locking application before initiating destructive operations.
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for full release history.
+
+### v1.1.0
+- **Native Home Screen & Dashboard:** Launching `DelUnlock.exe` directly now opens a dedicated Home Screen instead of popping up a system file dialog immediately.
+- **Drag-and-Drop Support:** Files and folders can be dragged and dropped directly onto the DelUnlock window to inspect and release locks.
+- **Dedicated Browse Actions:** Independent buttons to select a target file or folder manually.
+- **Context Menu Integration Toggle:** Live checkbox on the Home Screen to install or remove the right-click menu instantly.
+- **Direct Explorer Context Bypass:** Launching from the right-click menu or command-line continues to open the unlocker dialog directly with zero extra clicks.
+- **Windows XP 32-bit Compatibility:** Integrated MASM runtime stubs (`xp_compat_x86.asm`) to eliminate post-XP static CRT imports (`InitializeCriticalSectionEx`, SRW locks), enabling 100% native execution on Windows XP 32-bit.
+- **Stage 3 Elevated Scanner:** Added in-memory loaded module inspection for locked system DLLs when running elevated.
 
 ---
 

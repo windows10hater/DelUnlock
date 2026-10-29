@@ -15,12 +15,14 @@
 
 #include <map>
 #include <commctrl.h>
+#include <commdlg.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shlwapi.h>
 #include <uxtheme.h>
 
 #pragma comment(lib, "comctl32.lib")
+#pragma comment(lib, "comdlg32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "uxtheme.lib")
 #pragma comment(lib, "shell32.lib")
@@ -1672,6 +1674,445 @@ int ShowUnlockerDialog(HINSTANCE hInstance, const std::wstring& targetPath, HWND
         DispatchMessageW(&msg);
     }
 
+    return static_cast<int>(msg.wParam);
+}
+
+// ----------------------------------------------------------------------------
+// DelUnlock Home Screen / Dashboard
+// ----------------------------------------------------------------------------
+
+#define IDC_HOME_BTN_BROWSE_FILE   3001
+#define IDC_HOME_BTN_BROWSE_FOLDER 3002
+#define IDC_HOME_CHECK_CONTEXT     3003
+#define IDC_HOME_BTN_SETTINGS      3004
+#define IDC_HOME_BTN_EXIT          3005
+#define IDC_HOME_BTN_ADMIN         3006
+
+struct HomeScreenContext {
+    HINSTANCE hInstance        = nullptr;
+    HWND      hwnd             = nullptr;
+    HWND      hBtnBrowseFile   = nullptr;
+    HWND      hBtnBrowseFolder = nullptr;
+    HWND      hCheckContext    = nullptr;
+    HWND      hBtnSettings     = nullptr;
+    HWND      hBtnExit         = nullptr;
+    HWND      hBtnAdmin        = nullptr;
+
+    bool      isDark           = false;
+    HBRUSH    hBrBackground    = nullptr;
+    HBRUSH    hBrCard          = nullptr;
+    HPEN      hPenBorder       = nullptr;
+
+    HFONT     hFontTitle       = nullptr;
+    HFONT     hFontBold        = nullptr;
+    HFONT     hFontBody        = nullptr;
+    HFONT     hFontSmall       = nullptr;
+    HICON     hIconLarge       = nullptr;
+};
+
+static LRESULT CALLBACK HomeScreenWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    auto* ctx = reinterpret_cast<HomeScreenContext*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+
+    switch (msg) {
+        case WM_CREATE: {
+            auto* cs = reinterpret_cast<CREATESTRUCTW*>(lParam);
+            ctx = reinterpret_cast<HomeScreenContext*>(cs->lpCreateParams);
+            ctx->hwnd = hwnd;
+            SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(ctx));
+
+            int dpi = GetWindowDpiSafe(hwnd);
+            ctx->isDark = ThemeBridge().IsExplorerDarkModeEnabled();
+
+            if (ctx->isDark) {
+                ThemeBridge().ApplyWindowChrome(hwnd, true);
+                ctx->hBrBackground = CreateSolidBrush(RGB(24, 24, 24));
+                ctx->hBrCard       = CreateSolidBrush(RGB(36, 36, 36));
+                ctx->hPenBorder    = CreatePen(PS_SOLID, 1, RGB(55, 55, 55));
+            } else {
+                ctx->hBrBackground = GetSysColorBrush(COLOR_BTNFACE);
+                ctx->hBrCard       = CreateSolidBrush(RGB(255, 255, 255));
+                ctx->hPenBorder    = CreatePen(PS_SOLID, 1, RGB(215, 215, 215));
+            }
+
+            ctx->hFontTitle = CreateUiFont(18, FW_BOLD, dpi);
+            ctx->hFontBold  = CreateUiFont(10, FW_BOLD, dpi);
+            ctx->hFontBody  = CreateUiFont(9, FW_NORMAL, dpi);
+            ctx->hFontSmall = CreateUiFont(8, FW_NORMAL, dpi);
+
+            ctx->hIconLarge = LoadIconW(ctx->hInstance, MAKEINTRESOURCEW(101));
+            if (!ctx->hIconLarge) ctx->hIconLarge = LoadIconW(nullptr, IDI_SHIELD);
+
+            // Drag and drop support
+            DragAcceptFiles(hwnd, TRUE);
+
+            // If not running as admin, provide a "Restart as Admin" button in the header
+            if (!IsRunningAsAdmin()) {
+                int adminW = ScaleDpi(124, dpi);
+                int adminH = ScaleDpi(26, dpi);
+                int adminX = ScaleDpi(500, dpi) - adminW - ScaleDpi(20, dpi);
+                int adminY = ScaleDpi(18, dpi);
+                ctx->hBtnAdmin = CreateWindowExW(
+                    0, L"BUTTON", L"Restart as Admin",
+                    WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                    adminX, adminY, adminW, adminH,
+                    hwnd, reinterpret_cast<HMENU>(IDC_HOME_BTN_ADMIN), ctx->hInstance, nullptr
+                );
+                SendMessageW(ctx->hBtnAdmin, WM_SETFONT, reinterpret_cast<WPARAM>(ctx->hFontSmall), TRUE);
+                if (ctx->isDark) SetWindowTheme(ctx->hBtnAdmin, L"DarkMode_Explorer", nullptr);
+            }
+
+            // Primary buttons inside the card
+            int cardLeft   = ScaleDpi(20, dpi);
+            int cardRight  = ScaleDpi(480, dpi);
+            int cardWidth  = cardRight - cardLeft;
+            int btnWidth   = (cardWidth - ScaleDpi(16, dpi)) / 2;
+            int btnHeight  = ScaleDpi(38, dpi);
+            int btnY       = ScaleDpi(160, dpi);
+
+            ctx->hBtnBrowseFile = CreateWindowExW(
+                0, L"BUTTON", L"Select File to Unlock...",
+                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                cardLeft + ScaleDpi(6, dpi), btnY, btnWidth, btnHeight,
+                hwnd, reinterpret_cast<HMENU>(IDC_HOME_BTN_BROWSE_FILE), ctx->hInstance, nullptr
+            );
+            SendMessageW(ctx->hBtnBrowseFile, WM_SETFONT, reinterpret_cast<WPARAM>(ctx->hFontBold), TRUE);
+
+            ctx->hBtnBrowseFolder = CreateWindowExW(
+                0, L"BUTTON", L"Select Folder to Unlock...",
+                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                cardLeft + ScaleDpi(10, dpi) + btnWidth, btnY, btnWidth, btnHeight,
+                hwnd, reinterpret_cast<HMENU>(IDC_HOME_BTN_BROWSE_FOLDER), ctx->hInstance, nullptr
+            );
+            SendMessageW(ctx->hBtnBrowseFolder, WM_SETFONT, reinterpret_cast<WPARAM>(ctx->hFontBold), TRUE);
+
+            // Context Menu toggle checkbox
+            int chkY = ScaleDpi(244, dpi);
+            ctx->hCheckContext = CreateWindowExW(
+                0, L"BUTTON", L"Integrate with Explorer right-click menu (\"DelUnlock / Force Delete...\")",
+                WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX,
+                ScaleDpi(22, dpi), chkY, ScaleDpi(456, dpi), ScaleDpi(22, dpi),
+                hwnd, reinterpret_cast<HMENU>(IDC_HOME_CHECK_CONTEXT), ctx->hInstance, nullptr
+            );
+            SendMessageW(ctx->hCheckContext, WM_SETFONT, reinterpret_cast<WPARAM>(ctx->hFontBody), TRUE);
+            SendMessageW(ctx->hCheckContext, BM_SETCHECK, IsContextMenuInstalled() ? BST_CHECKED : BST_UNCHECKED, 0);
+
+            // Bottom bar buttons
+            int btnBottomY = ScaleDpi(298, dpi);
+            int btnSetW    = ScaleDpi(88, dpi);
+            int btnExitW   = ScaleDpi(80, dpi);
+
+            ctx->hBtnSettings = CreateWindowExW(
+                0, L"BUTTON", L"Settings",
+                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                ScaleDpi(500, dpi) - btnExitW - btnSetW - ScaleDpi(26, dpi), btnBottomY, btnSetW, ScaleDpi(28, dpi),
+                hwnd, reinterpret_cast<HMENU>(IDC_HOME_BTN_SETTINGS), ctx->hInstance, nullptr
+            );
+            SendMessageW(ctx->hBtnSettings, WM_SETFONT, reinterpret_cast<WPARAM>(ctx->hFontBody), TRUE);
+
+            ctx->hBtnExit = CreateWindowExW(
+                0, L"BUTTON", L"Exit",
+                WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+                ScaleDpi(500, dpi) - btnExitW - ScaleDpi(18, dpi), btnBottomY, btnExitW, ScaleDpi(28, dpi),
+                hwnd, reinterpret_cast<HMENU>(IDC_HOME_BTN_EXIT), ctx->hInstance, nullptr
+            );
+            SendMessageW(ctx->hBtnExit, WM_SETFONT, reinterpret_cast<WPARAM>(ctx->hFontBody), TRUE);
+
+            if (ctx->isDark) {
+                SetWindowTheme(ctx->hBtnBrowseFile, L"DarkMode_Explorer", nullptr);
+                SetWindowTheme(ctx->hBtnBrowseFolder, L"DarkMode_Explorer", nullptr);
+                SetWindowTheme(ctx->hCheckContext, L"DarkMode_Explorer", nullptr);
+                SetWindowTheme(ctx->hBtnSettings, L"DarkMode_Explorer", nullptr);
+                SetWindowTheme(ctx->hBtnExit, L"DarkMode_Explorer", nullptr);
+            }
+            return 0;
+        }
+
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(hwnd, &ps);
+            if (!ctx) { EndPaint(hwnd, &ps); return 0; }
+
+            int dpi = GetWindowDpiSafe(hwnd);
+            RECT rcClient;
+            GetClientRect(hwnd, &rcClient);
+
+            FillRect(hdc, &rcClient, ctx->hBrBackground);
+
+            int iconSize = ScaleDpi(40, dpi);
+            int iconX    = ScaleDpi(22, dpi);
+            int iconY    = ScaleDpi(16, dpi);
+            if (ctx->hIconLarge) {
+                DrawIconEx(hdc, iconX, iconY, ctx->hIconLarge, iconSize, iconSize, 0, nullptr, DI_NORMAL);
+            }
+
+            SetBkMode(hdc, TRANSPARENT);
+            COLORREF crTextPrimary   = ctx->isDark ? RGB(255, 255, 255) : RGB(25, 25, 25);
+            COLORREF crTextSecondary = ctx->isDark ? RGB(165, 165, 165) : RGB(100, 100, 100);
+
+            SetTextColor(hdc, crTextPrimary);
+            SelectObject(hdc, ctx->hFontTitle);
+            RECT rcTitle = {
+                iconX + iconSize + ScaleDpi(12, dpi),
+                iconY - ScaleDpi(2, dpi),
+                rcClient.right - ScaleDpi(150, dpi),
+                iconY + ScaleDpi(24, dpi)
+            };
+            DrawTextW(hdc, L"DelUnlock", -1, &rcTitle, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+
+            SetTextColor(hdc, crTextSecondary);
+            SelectObject(hdc, ctx->hFontSmall);
+            RECT rcSubtitle = {
+                rcTitle.left,
+                rcTitle.bottom + ScaleDpi(2, dpi),
+                rcClient.right - ScaleDpi(20, dpi),
+                rcTitle.bottom + ScaleDpi(18, dpi)
+            };
+            const wchar_t* bullet = (ThemeBridge().major >= 6) ? L"\x2022" : L"-";
+            bool admin = IsRunningAsAdmin();
+            wchar_t subText[256] = {};
+            wsprintfW(subText, L"Driverless File Unlocker & Handle Release Utility  %s  %s", bullet, admin ? L"Administrator" : L"Standard User");
+            DrawTextW(hdc, subText, -1, &rcSubtitle, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+
+            RECT rcCard = {
+                ScaleDpi(20, dpi),
+                ScaleDpi(74, dpi),
+                rcClient.right - ScaleDpi(20, dpi),
+                ScaleDpi(224, dpi)
+            };
+
+            HBRUSH hOldBr = reinterpret_cast<HBRUSH>(SelectObject(hdc, ctx->hBrCard));
+            HPEN   hOldPen = reinterpret_cast<HPEN>(SelectObject(hdc, ctx->hPenBorder));
+            int corner = ScaleDpi(10, dpi);
+            RoundRect(hdc, rcCard.left, rcCard.top, rcCard.right, rcCard.bottom, corner, corner);
+            SelectObject(hdc, hOldBr);
+            SelectObject(hdc, hOldPen);
+
+            SetTextColor(hdc, crTextPrimary);
+            SelectObject(hdc, ctx->hFontBold);
+            RECT rcDrop1 = {
+                rcCard.left + ScaleDpi(16, dpi),
+                rcCard.top + ScaleDpi(16, dpi),
+                rcCard.right - ScaleDpi(16, dpi),
+                rcCard.top + ScaleDpi(38, dpi)
+            };
+            DrawTextW(hdc, L"Drag and drop locked files or folders here", -1, &rcDrop1, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
+
+            SetTextColor(hdc, crTextSecondary);
+            SelectObject(hdc, ctx->hFontBody);
+            RECT rcDrop2 = {
+                rcCard.left + ScaleDpi(16, dpi),
+                rcDrop1.bottom,
+                rcCard.right - ScaleDpi(16, dpi),
+                rcDrop1.bottom + ScaleDpi(22, dpi)
+            };
+            DrawTextW(hdc, L"or select a target manually to inspect locks and release handles:", -1, &rcDrop2, DT_SINGLELINE | DT_CENTER | DT_VCENTER | DT_NOPREFIX);
+
+            SetTextColor(hdc, crTextSecondary);
+            SelectObject(hdc, ctx->hFontSmall);
+            RECT rcCtxHint = {
+                ScaleDpi(42, dpi),
+                ScaleDpi(268, dpi),
+                rcClient.right - ScaleDpi(20, dpi),
+                ScaleDpi(288, dpi)
+            };
+            DrawTextW(hdc, L"Allows right-click unlocking directly in File Explorer without opening this window.", -1, &rcCtxHint, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
+
+        case WM_CTLCOLORSTATIC: {
+            HDC hdcStatic = reinterpret_cast<HDC>(wParam);
+            SetBkMode(hdcStatic, TRANSPARENT);
+            if (ctx && ctx->isDark) {
+                SetTextColor(hdcStatic, RGB(240, 240, 240));
+                return reinterpret_cast<LRESULT>(ctx->hBrBackground);
+            }
+            SetTextColor(hdcStatic, GetSysColor(COLOR_WINDOWTEXT));
+            return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_BTNFACE));
+        }
+
+        case WM_CTLCOLORBTN: {
+            if (ctx && ctx->isDark) {
+                return reinterpret_cast<LRESULT>(ctx->hBrBackground);
+            }
+            return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_BTNFACE));
+        }
+
+        case WM_DROPFILES: {
+            HDROP hDrop = reinterpret_cast<HDROP>(wParam);
+            UINT count = DragQueryFileW(hDrop, 0xFFFFFFFF, nullptr, 0);
+            std::vector<std::wstring> dropped;
+            for (UINT i = 0; i < count; i++) {
+                wchar_t buf[MAX_PATH * 2] = {};
+                if (DragQueryFileW(hDrop, i, buf, MAX_PATH * 2) && buf[0]) {
+                    dropped.push_back(buf);
+                }
+            }
+            DragFinish(hDrop);
+
+            if (!dropped.empty()) {
+                ShowWindow(hwnd, SW_HIDE);
+                if (dropped.size() == 1) {
+                    ShowUnlockerDialog(ctx->hInstance, dropped[0], nullptr);
+                } else {
+                    ShowUnlockerDialog(ctx->hInstance, dropped, nullptr);
+                }
+                ShowWindow(hwnd, SW_SHOWNORMAL);
+                SetForegroundWindow(hwnd);
+            }
+            return 0;
+        }
+
+        case WM_COMMAND: {
+            int id = LOWORD(wParam);
+            if (id == IDC_HOME_BTN_BROWSE_FILE) {
+                wchar_t fileBuf[MAX_PATH * 2] = {};
+                OPENFILENAMEW ofn = {};
+                ofn.lStructSize = sizeof(ofn);
+                ofn.hwndOwner   = hwnd;
+                ofn.lpstrFilter = L"All Files (*.*)\0*.*\0";
+                ofn.lpstrFile   = fileBuf;
+                ofn.nMaxFile    = MAX_PATH * 2;
+                ofn.lpstrTitle  = L"Select Locked File to Inspect / Unlock";
+                ofn.Flags       = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_EXPLORER | OFN_ENABLESIZING |
+                                  OFN_NODEREFERENCELINKS | OFN_DONTADDTORECENT | OFN_NOCHANGEDIR;
+
+                wchar_t initialDir[MAX_PATH] = {};
+                if (SHGetSpecialFolderPathW(nullptr, initialDir, CSIDL_DESKTOPDIRECTORY, FALSE)) {
+                    ofn.lpstrInitialDir = initialDir;
+                }
+
+                if (GetOpenFileNameW(&ofn) && fileBuf[0]) {
+                    ShowWindow(hwnd, SW_HIDE);
+                    ShowUnlockerDialog(ctx->hInstance, fileBuf, nullptr);
+                    ShowWindow(hwnd, SW_SHOWNORMAL);
+                    SetForegroundWindow(hwnd);
+                }
+                return 0;
+            }
+
+            if (id == IDC_HOME_BTN_BROWSE_FOLDER) {
+                std::wstring folder;
+                if (PickFolderDialog(hwnd, folder) && !folder.empty()) {
+                    ShowWindow(hwnd, SW_HIDE);
+                    ShowUnlockerDialog(ctx->hInstance, folder, nullptr);
+                    ShowWindow(hwnd, SW_SHOWNORMAL);
+                    SetForegroundWindow(hwnd);
+                }
+                return 0;
+            }
+
+            if (id == IDC_HOME_CHECK_CONTEXT) {
+                bool checked = (SendMessageW(ctx->hCheckContext, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                if (checked) {
+                    InstallContextMenu();
+                } else {
+                    UninstallContextMenu();
+                }
+                AppConfig cfg = LoadConfig();
+                cfg.contextMenuEnabled = checked;
+                SaveConfig(cfg);
+                return 0;
+            }
+
+            if (id == IDC_HOME_BTN_SETTINGS) {
+                ShowSettingsDialog(hwnd, ctx->hInstance);
+                SendMessageW(ctx->hCheckContext, BM_SETCHECK, IsContextMenuInstalled() ? BST_CHECKED : BST_UNCHECKED, 0);
+                return 0;
+            }
+
+            if (id == IDC_HOME_BTN_ADMIN) {
+                RelaunchAsAdmin(hwnd, {});
+                DestroyWindow(hwnd);
+                return 0;
+            }
+
+            if (id == IDC_HOME_BTN_EXIT || id == IDCANCEL) {
+                DestroyWindow(hwnd);
+                return 0;
+            }
+            break;
+        }
+
+        case WM_DESTROY: {
+            if (ctx) {
+                if (ctx->hFontTitle) DeleteObject(ctx->hFontTitle);
+                if (ctx->hFontBold)  DeleteObject(ctx->hFontBold);
+                if (ctx->hFontBody)  DeleteObject(ctx->hFontBody);
+                if (ctx->hFontSmall) DeleteObject(ctx->hFontSmall);
+                if (ctx->hBrCard)    DeleteObject(ctx->hBrCard);
+                if (ctx->hPenBorder) DeleteObject(ctx->hPenBorder);
+                if (ctx->isDark && ctx->hBrBackground) DeleteObject(ctx->hBrBackground);
+            }
+            PostQuitMessage(0);
+            return 0;
+        }
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+int ShowHomeScreen(HINSTANCE hInstance) {
+    INITCOMMONCONTROLSEX icex = {};
+    icex.dwSize = sizeof(icex);
+    icex.dwICC  = ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES;
+    InitCommonControlsEx(&icex);
+
+    const wchar_t* kClassName = L"DelUnlockHomeScreenClass";
+
+    WNDCLASSEXW wc = {};
+    wc.cbSize        = sizeof(wc);
+    wc.style         = CS_HREDRAW | CS_VREDRAW;
+    wc.lpfnWndProc   = HomeScreenWndProc;
+    wc.hInstance     = hInstance;
+    wc.hCursor       = LoadCursorW(nullptr, IDC_ARROW);
+    wc.hIcon         = LoadIconW(hInstance, MAKEINTRESOURCEW(101));
+    if (!wc.hIcon)   wc.hIcon = LoadIconW(nullptr, IDI_SHIELD);
+    wc.hIconSm       = LoadIconW(hInstance, MAKEINTRESOURCEW(101));
+    if (!wc.hIconSm) wc.hIconSm = LoadIconW(nullptr, IDI_SHIELD);
+    wc.hbrBackground = nullptr;
+    wc.lpszClassName = kClassName;
+    RegisterClassExW(&wc);
+
+    HomeScreenContext ctx;
+    ctx.hInstance = hInstance;
+
+    int dpi = GetWindowDpiSafe(nullptr);
+    int clientW = ScaleDpi(500, dpi);
+    int clientH = ScaleDpi(344, dpi);
+
+    DWORD style   = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    DWORD exStyle = WS_EX_APPWINDOW;
+
+    RECT rcWin = { 0, 0, clientW, clientH };
+    AdjustWindowRectEx(&rcWin, style, FALSE, exStyle);
+    int winW = rcWin.right - rcWin.left;
+    int winH = rcWin.bottom - rcWin.top;
+
+    int posX = (GetSystemMetrics(SM_CXSCREEN) - winW) / 2;
+    int posY = (GetSystemMetrics(SM_CYSCREEN) - winH) / 2;
+
+    HWND hwnd = CreateWindowExW(
+        exStyle,
+        kClassName,
+        L"DelUnlock",
+        style,
+        posX, posY, winW, winH,
+        nullptr, nullptr, hInstance, &ctx
+    );
+
+    if (!hwnd) return 1;
+
+    ShowWindow(hwnd, SW_SHOWNORMAL);
+    UpdateWindow(hwnd);
+    SetForegroundWindow(hwnd);
+    BringWindowToTop(hwnd);
+
+    MSG msg = {};
+    while (GetMessageW(&msg, nullptr, 0, 0) > 0) {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
     return static_cast<int>(msg.wParam);
 }
 

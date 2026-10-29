@@ -17,6 +17,10 @@
 
 namespace unlocker {
 
+// Shows the main DelUnlock Home Screen / Dashboard when launched without arguments.
+// Supports drag-and-drop, browsing files/folders, and managing context menu integration.
+int ShowHomeScreen(HINSTANCE hInstance);
+
 // Launches the interactive Unlocker window for a single target or multiple selected targets.
 int ShowUnlockerDialog(
     HINSTANCE hInstance,
