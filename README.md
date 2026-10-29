@@ -225,21 +225,6 @@ This tool is provided "as is", without warranty of any kind. You are responsible
 
 ---
 
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for full release history.
-
-### v1.1.0
-- **Native Home Screen & Dashboard:** Launching `DelUnlock.exe` directly now opens a dedicated Home Screen instead of popping up a system file dialog immediately.
-- **Drag-and-Drop Support:** Files and folders can be dragged and dropped directly onto the DelUnlock window to inspect and release locks.
-- **Dedicated Browse Actions:** Independent buttons to select a target file or folder manually.
-- **Context Menu Integration Toggle:** Live checkbox on the Home Screen to install or remove the right-click menu instantly.
-- **Direct Explorer Context Bypass:** Launching from the right-click menu or command-line continues to open the unlocker dialog directly with zero extra clicks.
-- **Windows XP 32-bit Compatibility:** Integrated MASM runtime stubs (`xp_compat_x86.asm`) to eliminate post-XP static CRT imports (`InitializeCriticalSectionEx`, SRW locks), enabling 100% native execution on Windows XP 32-bit.
-- **Stage 3 Elevated Scanner:** Added in-memory loaded module inspection for locked system DLLs when running elevated.
-
----
-
 ## License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE).

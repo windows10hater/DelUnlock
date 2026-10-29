@@ -40,8 +40,8 @@ jobs:
       - name: Compile Standalone Executable
         shell: cmd
         run: |
-          build.bat ${{ matrix.arch }}
-          if /i "${{ matrix.arch }}"=="x64" if not exist ${{ matrix.outname }} copy /Y DelUnlock.exe ${{ matrix.outname }}
+          call build.bat ${{ matrix.arch }}
+          if not exist ${{ matrix.outname }} copy /Y DelUnlock.exe ${{ matrix.outname }}
 
       - name: Calculate Checksum
         shell: pwsh
@@ -64,6 +64,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -77,11 +80,21 @@ jobs:
           cat *.sha256 > SHA256SUMS.txt
           ls -la
 
+      - name: Extract Release Notes
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          sed -n "/## \[${TAG_VERSION}\]/,/## \[/p" CHANGELOG.md | sed '$d' > release_dist/RELEASE_NOTES.md
+          if [ ! -s release_dist/RELEASE_NOTES.md ]; then
+            echo "Release ${GITHUB_REF_NAME}" > release_dist/RELEASE_NOTES.md
+          fi
+          cat release_dist/RELEASE_NOTES.md
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          name: DelUnlock ${{ github.ref_name }}
+          body_path: release_dist/RELEASE_NOTES.md
           files: |
             release_dist/DelUnlock-x64.exe
             release_dist/DelUnlock-x86.exe
             release_dist/SHA256SUMS.txt
-          generate_release_notes: true

@@ -36,7 +36,7 @@ if not exist build mkdir build
 rc.exe /nologo /fo build\resource.res res\resource.rc
 
 set "SUBSYS=5.02"
-set "OUTNAME=DelUnlock.exe"
+set "OUTNAME=DelUnlock-x64.exe"
 set "EXTRA_OBJS="
 if /i "%TARGET_ARCH%"=="x86" (
     set "SUBSYS=5.01"
@@ -58,6 +58,10 @@ cl.exe /nologo /O2 /Ob2 /Oi /Os /GL /GS- /EHsc /std:c++17 /MT ^
 if %ERRORLEVEL% neq 0 (
     echo [!] Compilation failed!
     exit /b %ERRORLEVEL%
+)
+
+if /i "%OUTNAME%"=="DelUnlock-x64.exe" (
+    copy /Y DelUnlock-x64.exe DelUnlock.exe >nul
 )
 
 echo [+] Successfully built %OUTNAME%!
